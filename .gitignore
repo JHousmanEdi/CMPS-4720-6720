@@ -7,6 +7,7 @@ Person_Check/
 segmented_images/
 Raw_Images/
 .idea/
+Person/
 *.pdf
 
 # Compiled class file

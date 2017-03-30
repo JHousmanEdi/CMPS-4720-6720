@@ -4,6 +4,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.datavec.api.io.filters.BalancedPathFilter;
 import org.datavec.api.io.labels.ParentPathLabelGenerator;
+import org.datavec.api.records.reader.RecordReader;
 import org.datavec.api.split.FileSplit;
 import org.datavec.api.split.InputSplit;
 import org.datavec.image.loader.NativeImageLoader;
@@ -52,7 +53,7 @@ public class Person_Classifier {
     protected static final Logger log = LoggerFactory.getLogger(Person_Classifier.class);
     protected static int channels = 3;
     protected static int numLabels = 2;
-    protected static int batchSize = 20;
+    protected static int batchSize = 5000;
     protected static int numDatapoints = 20000;
     protected static long seed = 42;
     protected static Random rng = new Random(seed);
@@ -64,8 +65,8 @@ public class Person_Classifier {
 
 
     private void seperateByLabel()throws IOException {
-        File hasPerson = new File("/home/jason/Documents/CMPS-4720-6720/Person_Check/Has_Person");
-        File noPerson = new File("/home/jason/Documents/CMPS-4720-6720/Person_Check/No_Person");
+        File hasPerson = new File("/home/jason/Documents/CMPS-4720-6720/Person/Person");
+        File noPerson = new File("/home/jason/Documents/CMPS-4720-6720/Person/No_Person");
         ArrayList<String[]> lines = new ArrayList<String[]>();
         Scanner scanner = new Scanner(new File("/home/jason/Documents/CMPS-4720-6720/has_person_data_flat.csv"));
         scanner.useDelimiter(",");
@@ -73,7 +74,7 @@ public class Person_Classifier {
             String line = scanner.nextLine();
             lines.add(line.split(","));
         }
-        File dir = new File("/home/jason/Documents/CMPS-4720-6720/ResizedIma= new RecordReaderDataSetIterator(recordReader, batchSize, 1, numLabels)ges");
+        File dir = new File("/home/jason/Documents/CMPS-4720-6720/ResizedImages");
         File[] directoryListing = dir.listFiles();
         if (directoryListing != null) {
             for (File images : directoryListing) {
@@ -85,7 +86,7 @@ public class Person_Classifier {
                             FileUtils.copyFileToDirectory(images, hasPerson);
 
                         }
-                        if(Integer.parseInt(lines.get(i)[1]) == 1){
+                        if(Integer.parseInt(lines.get(i)[1]) == 0){
                             FileUtils.copyFileToDirectory(images, noPerson);
                         }
 
@@ -118,7 +119,8 @@ public class Person_Classifier {
     }
 
 
-    public static void main(String[] args)throws IOException {
+    public static void main(String[] args)throws Exception {
+        Person_Classifier main = new Person_Classifier();
         Nd4j.create(1);
 
         CudaEnvironment.getInstance().getConfiguration().allowMultiGPU(true)
@@ -127,13 +129,12 @@ public class Person_Classifier {
         log.info("Processing and Loading data....");
 
         //ImageRecordReader recordReader = new ImageRecordReader(250, 250, 3);
-        Person_Classifier main = new Person_Classifier();
-        File parentDir = new File("/home/jason/Documents/CMPS-4720-6720/Person_Check/");
-        FileSplit filesinDir = new FileSplit(parentDir, NativeImageLoader.ALLOWED_FORMATS, rng);
         ParentPathLabelGenerator labelMaker = new ParentPathLabelGenerator();
+        File parentDir = new File(System.getProperty("user.dir"),"Person/");
+        FileSplit filesplit = new FileSplit(parentDir, NativeImageLoader.ALLOWED_FORMATS, rng);
         BalancedPathFilter pathFilter = new BalancedPathFilter(rng, labelMaker, numDatapoints,numLabels, batchSize);
+        InputSplit[] inputSplit = filesplit.sample(pathFilter, splitTrainTest, 1-splitTrainTest);
 
-        InputSplit[] inputSplit = filesinDir.sample(pathFilter, splitTrainTest, 1-splitTrainTest);
         InputSplit trainData = inputSplit[0];
         InputSplit testData = inputSplit[1];
 
@@ -167,11 +168,11 @@ public class Person_Classifier {
         MultiLayerNetwork model = new MultiLayerNetwork(conf);
         model.init();
         model.setListeners(new ScoreIterationListener(listenerFreq));
-        ImageRecordReader recordReader = new ImageRecordReader(256, 256, 3, labelMaker);
+        ImageRecordReader recordReader = new ImageRecordReader(height, width, channels, labelMaker);
         DataSetIterator dataIter;
         MultipleEpochsIterator trainiter;
-        log.info("Training model");
 
+        log.info("Training model");
         recordReader.initialize(trainData, null);
         dataIter = new RecordReaderDataSetIterator(recordReader, batchSize, 1, numLabels);
         scaler.fit(dataIter);

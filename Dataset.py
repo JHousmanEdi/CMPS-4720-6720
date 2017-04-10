@@ -20,7 +20,6 @@ a = parser.parse_args()
 Examples = collections.namedtuple("Examples", "paths, inputs, targets, count, steps_per_epoch")
 
 
-
 def preprocess(image):
     with tf.name_scope("preprocess"):
         return image * 2 - 1
@@ -47,7 +46,7 @@ def deprocess_lab(l_channel, gr_channel, by_channel):
         l_channel = (l_channel + 1) /2 * 100 #lchannel
         gr_channel = gr_channel * 110 #achannel
         by_channel = by_channel * 110 #bchannel
-        return tf.stack([()])
+        return tf.stack([(l_channel +1) /2 * 100, gr_channel * 110, by_channel * 110], axis =3)
 
 
 def check_image(image):

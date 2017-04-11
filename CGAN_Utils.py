@@ -42,3 +42,7 @@ def deconv(batch_input, out_channels, ksize, stride, padding):
                                           [1, stride, stride, 1], padding="VALID")
         return tranconv
 
+
+def make_optimizer(alpha,beta1):
+    optimizer = tf.train.AdamOptimizer(alpha, beta1)
+    return optimizer

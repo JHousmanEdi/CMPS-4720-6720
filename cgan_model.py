@@ -1,18 +1,8 @@
+from argsource import *
+from cgan_utils import *
 import tensorflow as tf
-from CGAN_Utils import *
-import argparse
 import collections
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--ngf", type=int, default=64, help="number of generator filters in first conv layer")
-parser.add_argument('--beta1', type=float, default=0.5,   help='Beta for Adam, default=0.5')
-parser.add_argument('--lr_d', type=float, default=0.0002, help='Learning rate for Critic, default=0.0002')
-parser.add_argument('--lr_g', type=float, default=0.002, help='Learning rate for Generator, default=0.002')
-parser.add_argument("--ndf", type=int, default=64, help="number of discriminator filters in first conv layer")
-parser.add_argument("--cropping", type=int, default=256, help="Size of image crop")
-parser.add_argument('--l2_weight', type=float, default=0.999, help='Weight for l2 loss, default=0.999')
-
-a = parser.parse_args()
 Model = collections.namedtuple("Model", "outputs, predict_real, predict_fake, D_loss, "
                                         "discrim_grad_vars, gen_loss, G_loss, gen_grads_vars, train")
 
@@ -21,19 +11,19 @@ def create_generator(generator_inputs, generator_outputs_channels):
 
     #encoder_1: [batch, 256, 256, in_channels]
     with tf.variable_scope("encoder_1"):
-        output = conv(batch_input=generator_inputs, out_channels=a.ngf, ksize=4, stride=2, padding=1)
+        output = conv(batch_input=generator_inputs, out_channels=args['ngf'], ksize=4, stride=2, padding=1)
         layers.append(output)
 
         #ENCODER Model
     layer_specs = [
-        a.ngf * 2,
-        a.ngf * 4,
-        a.ngf * 8,
-        a.ngf * 8,
-        a.ngf * 8,
-        a.ngf * 8,
-        a.ngf * 8,
-        a.ngf * 8,
+        args['ngf'] * 2,
+        args['ngf'] * 4,
+        args['ngf'] * 8,
+        args['ngf'] * 8,
+        args['ngf'] * 8,
+        args['ngf'] * 8,
+        args['ngf'] * 8,
+        args['ngf'] * 8,
     ]
 
     for out_channels in layer_specs:
@@ -45,12 +35,12 @@ def create_generator(generator_inputs, generator_outputs_channels):
             layers.append(output)
 
     layer_specs = [
-        (a.ngf * 8, 0.5),
-        (a.ngf * 8, 0.5),
-        (a.ngf * 8, 0.5),
-        (a.ngf * 8, 0.0),
-        (a.ngf * 4, 0.0),
-        (a.ngf * 2, 0.0),
+        (args['ngf'] * 8, 0.5),
+        (args['ngf'] * 8, 0.5),
+        (args['ngf'] * 8, 0.5),
+        (args['ngf'] * 8, 0.0),
+        (args['ngf'] * 4, 0.0),
+        (args['ngf'] * 2, 0.0),
     ]
     for decode_layer, (out_channels, dropout) in enumerate(layer_specs):
         with tf.variable_scope("decoder_{}".format(decode_layer)):
@@ -81,13 +71,13 @@ def create_model(inputs, targets):
         input = tf.concat([discrim_inputs, discrim_targets], axis=3)
 
         with tf.variable_scope("layer_1"):
-            convolved = conv(input, a.ndf, ksize=4,stride=2,padding=1)
+            convolved = conv(input, args['ndf'], ksize=4,stride=2,padding=1)
             rectified = leaky_relu(convolved,0.2)
             layers.append(rectified)
 
         for i in range(n_layers):
             with tf.variable_scope("layer_{}" .format(len(layers) + 1)):
-                out_channels = a.ndf * min(2**(i+1),8)
+                out_channels = args['ndf'] * min(2**(i+1),8)
                 convolved = conv(layers[-1], out_channels, stride=2, ksize=4, padding=1)
                 normalized = batchnorm(convolved)
                 rectified = leaky_relu(normalized, 0.2)
@@ -98,38 +88,33 @@ def create_model(inputs, targets):
             layers.append(output)
         return layers[-1]
 
-
-    with tf.variable_scope("generator") as scope:
+    with tf.variable_scope("generator") as scope: ##Load Generator Model
         out_channels = int(targets.get_shape()[-1])
         outputs = create_generator(inputs, out_channels)
 
-    with tf.name_scope('real_discriminator'):
+    with tf.name_scope('real_discriminator'): #Load discriminator that compares touched up and untouched images
         with tf.variable_scope('discriminator'):
             predict_real = create_discriminator(inputs, targets)
 
-    with tf.name_scope("fake_discriminator"):
-        with tf.variable_scope("discriminator"):
-            predict_real = create_discriminator(inputs, targets)
-
-    with tf.name_scope('fake discriminator'):
+    with tf.name_scope('fake discriminator'): #Loads discriminator that compares original and generated images
         with tf.variable_scope("discriminator", reuse=True):
             predict_fake = create_discriminator(inputs, outputs)
 
-    with tf.name_scope("discriminator_loss"):
+    with tf.name_scope("discriminator_loss"): #Calculates loss of generator
         D_loss = tf.reduce_mean(tf.log(predict_real) + tf.log(1. - predict_fake))
 
-    with tf.name_scope("generator_loss"):
+    with tf.name_scope("generator_loss"): #Calculates loss of generator
         gen_loss = tf.nn.l2_loss(-tf.log(predict_fake))
-        G_loss = (1-a.l2_weight)*D_loss + (a.l2_weight * gen_loss) #GP-GAN LOSS
-    with tf.name_scope("discriminator_train"):
+        G_loss = (1-args['l2_weight'])*D_loss + (args['l2_weight'] * gen_loss) #GP-GAN LOSS
+    with tf.name_scope("discriminator_train"): #Trains the discriminator with ADAM optimizer
         discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
-        discrim_optim = tf.train.AdamOptimizer(a.lr_d, a.beta1)
+        discrim_optim = tf.train.AdamOptimizer(args['lr_d'], args['beta1'])
         discrim_grad_vars = discrim_optim.compute_gradients(gen_loss, var_list=discrim_tvars)
         discrim_train = discrim_optim.apply_gradients(discrim_grad_vars)
-    with tf.name_scope("generator_train"):
+    with tf.name_scope("generator_train"): #Trains the generator with the ADAM optimizer
         with tf.control_dependencies([discrim_train]):
             gen_tvars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
-            gen_optim = tf.train.AdamOptimizer(a.lr_d, a.beta1)
+            gen_optim = tf.train.AdamOptimizer(args['lr_g'], args['beta1'])
             gen_grads_vars = gen_optim.compute_gradients(gen_loss, var_list=gen_tvars)
             gen_train = gen_optim.apply_gradients(gen_grads_vars)
 

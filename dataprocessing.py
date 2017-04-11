@@ -1,21 +1,12 @@
+from argsource import *
 import tensorflow as tf
-import argparse
 import glob
 import random
 import os
 import collections
 import math
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--images", default="/home/jason/Documents/CMPS-4720-6720/Dataset/ExpB128", help="path to folder containing images")
-parser.add_argument("--scaling", type=int, default=286, help="scale images to this size before cropping to 256x256")
-parser.add_argument("--cropping", type=int, default=256, help="Size of image crop")
-parser.add_argument("--batch", type=int, default=1, help="num images in batch")
-parser.add_argument("--mode", default="train", choices=["train", "test", "export"]) #Add Required Later
-parser.add_argument("--flip", dest="flip", action="store_true", help="flip images horizontally")
-parser.add_argument("--no_flip", dest="flip", action="store_false", help="don't flip images horizontally")
-parser.set_defaults(flip=True)
-a = parser.parse_args()
+
 
 Examples = collections.namedtuple("Examples", "paths, inputs, targets, count, steps_per_epoch")
 
@@ -157,9 +148,9 @@ def augment(image, brightness):
 
 
 def load_examples():
-    if a.images is None or not os.path.exists(a.images):
+    if args['images'] is None or not os.path.exists(args['images']):
         raise Exception("input_dir does not exist")
-    input_paths = glob.glob(os.path.join(a.images, "*.jpg"))
+    input_paths = glob.glob(os.path.join(args['images'], "*.jpg"))
     decode = tf.image.decode_jpeg
     if len(input_paths) == 0:
         raise Exception("There were no images in the folder")
@@ -174,13 +165,13 @@ def load_examples():
         input_paths = sorted(input_paths)
 
     with tf.name_scope("load_images"):
-        path_queue = tf.train.string_input_producer(input_paths, shuffle=a.mode == "train")
+        path_queue = tf.train.string_input_producer(input_paths, shuffle=args['mode'] == "train")
         reader = tf.WholeFileReader()
         paths, contents = reader.read(path_queue)
         raw_input = decode(contents)
         raw_input = tf.image.convert_image_dtype(raw_input, dtype=tf.float32)
 
-        assertion = tf.assert_equal(tf.shape(raw_input)[2], 3, message = "not enough color channels")
+        assertion = tf.assert_equal(tf.shape(raw_input)[2], 3, message="not enough color channels")
         with tf.control_dependencies([assertion]):
             raw_input = tf.identity(raw_input)
 
@@ -196,14 +187,14 @@ def load_examples():
         seed = random.randint(0, 2**31 - 1)
         def transform(image):
             r = image
-            if a.flip:
+            if args['flip']:
                 r = tf.image.random_flip_left_right(r, seed=seed)
             #scale down photo
-            r = tf.image.resize_images(r, [a.scaling, a.scaling], method =tf.image.ResizeMethod.AREA)
-            offset = tf.cast(tf.floor(tf.random_uniform([2], 0, a.scaling - a.cropping + 1, seed=seed)), dtype=tf.int32)
-            if a.scaling > a.cropping:
-                r = tf.image.crop_to_bounding_box(r, offset[0], offset[1], a.cropping, a.cropping)
-            elif a.scaling < a.cropping:
+            r = tf.image.resize_images(r, [args['scaling'], args['scaling']], method =tf.image.ResizeMethod.AREA)
+            offset = tf.cast(tf.floor(tf.random_uniform([2], 0, args['scaling'] - args['cropping'] + 1, seed=seed)), dtype=tf.int32)
+            if args['scaling'] > args['cropping']:
+                r = tf.image.crop_to_bounding_box(r, offset[0], offset[1], args['cropping'], args['cropping'])
+            elif args['scaling'] < args['cropping']:
                 raise Exception("scale size is less than crop size")
             return r
 
@@ -214,13 +205,59 @@ def load_examples():
             target_images = transform(targets)
 
         paths_batch, input_batch, targets_batch = tf.train.batch([paths, original_images, target_images],
-                                                                 batch_size=a.batch)
-        steps_per_epoch = int(math.ceil(len(input_paths) / a.batch))
+                                                                 batch_size=args['batch'])
+        steps_per_epoch = int(math.ceil(len(input_paths) / args['batch']))
 
         return Examples(
             paths=paths_batch, inputs=input_batch,targets=targets_batch,
             count=len(input_paths), steps_per_epoch=steps_per_epoch
         )
+
+
+def save_image(fetches, dataset, step=None):
+    image_dir = os.path.join(args['results_dir'], dataset)
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+    filesets = []
+    for i, in_path in enumerate(fetches["paths"]):
+        name, _ = os.path.splitext(os.path.basename(in_path.decode("utf8")))
+        fileset = {"name" : name, "step": step}
+        for kind in ["inputs", "outputs", "targets"]:
+            filename = "{}-{}.jpg".format(name, kind)
+            if step is not None:
+                filename = "%08d-%s" % (step, filename)
+                fileset[kind] = filename
+                out_path = os.path.join(image_dir, filename)
+                contents = fetches[kind][i]
+                with open(out_path, "wb") as f:
+                    f.write(contents)
+        filesets.append(fileset)
+    return filesets
+
+
+def append_index(filesets, step=False):
+    index_path = os.path.join(args['output_dir'], "index.html")
+    if os.path.exists(index_path):
+        index = open(index_path, "a")
+    else:
+        index = open(index_path, "w")
+        index.write("<html><body><table><tr>")
+        if step:
+            index.write("<th>step</th>")
+        index.write("<th>name</th><th>input</th><th>output</th><th>target</th></tr>")
+
+    for fileset in filesets:
+        index.write("<tr>")
+
+        if step:
+            index.write("<td>%d</td>" % fileset["step"])
+        index.write("<td>%s</td>" % fileset["name"])
+
+        for kind in ["inputs", "outputs", "targets"]:
+            index.write("<td><img src='images/%s'></td>" % fileset[kind])
+
+        index.write("</tr>")
+    return index_path
 
 
 

@@ -66,8 +66,7 @@ def create_generator(generator_inputs, generator_outputs_channels):
     return layers[-1]
 
 
-def create_model(inputs, targets):
-    def create_discriminator(discrim_inputs, discrim_targets):
+def create_discriminator(discrim_inputs, discrim_targets):
         n_layers = 3
         layers = []
 
@@ -90,7 +89,7 @@ def create_model(inputs, targets):
             output = tf.sigmoid(convolved)
             layers.append(output)
         return layers[-1]
-
+def create_model(inputs, targets):
     with tf.variable_scope("generator") as scope: ##Load Generator Model
         out_channels = int(targets.get_shape()[-1])
         outputs = create_generator(inputs, out_channels)
@@ -104,17 +103,17 @@ def create_model(inputs, targets):
             predict_fake = create_discriminator(inputs, outputs)
 
     with tf.name_scope("discriminator_loss"): #Calculates loss of generator
-        D_loss = tf.reduce_mean(-(tf.log(predict_real) + tf.log(1. - predict_fake)))
+        D_loss = tf.reduce_mean(-(tf.log(predict_real) + tf.log(1 - predict_fake)))
 
     with tf.name_scope("generator_loss"): #Calculates loss of generator
         gan_loss = tf.reduce_mean(-tf.log(predict_fake))
-        gen_l2_loss = tf.nn.l2_loss(-tf.log(predict_fake))
+        gen_l2_loss = tf.nn.l2_loss(tf.abs(targets - outputs))
         G_loss = (1-args['l2_weight'])*gan_loss + (args['l2_weight'] * gen_l2_loss) #GP-GAN LOSS
 
     with tf.name_scope("discriminator_train"): #Trains the discriminator with ADAM optimizer
         discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
         discrim_optim = tf.train.AdamOptimizer(args['lr_d'], args['beta1'])
-        discrim_grad_vars = discrim_optim.compute_gradients(gen_l2_loss, var_list=discrim_tvars)
+        discrim_grad_vars = discrim_optim.compute_gradients(D_loss, var_list=discrim_tvars)
         discrim_train = discrim_optim.apply_gradients(discrim_grad_vars)
 
     with tf.name_scope("generator_train"): #Trains the generator with the ADAM optimizer

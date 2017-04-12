@@ -165,7 +165,7 @@ def main():
                 max_steps = min(examples.steps_per_epoch, max_steps)
                 for step in range(max_steps):
                     results = sess.run(display_fetches)
-                    filesets = ds.save_image(results, "ExpB")
+                    filesets = ds.save_image(results, "ExpE")
                     for i, f in enumerate(filesets):
                         print("evalauted image", f["name"])
             else:
@@ -220,7 +220,7 @@ def main():
 
                     if right_time(args['display_freq']):
                         print("Saving progress images")
-                        filesets = ds.save_image(results["display"], 'inprogExpB', step=results["global_step"])
+                        filesets = ds.save_image(results["display"], 'ProgExpE', step=results["global_step"])
                         ds.append_index(filesets, step=True)
 
                     if right_time(args['save_freq']):

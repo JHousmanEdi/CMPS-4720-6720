@@ -223,7 +223,7 @@ def convert(image):
 
 
 def save_image(fetches, dataset, step=None):
-    image_dir = os.path.join(args['results_dir'], dataset)
+    image_dir = os.path.join(args['prog_dir'], dataset)
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
     filesets = []

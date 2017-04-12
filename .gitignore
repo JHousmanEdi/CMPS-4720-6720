@@ -11,6 +11,9 @@ Person/
 Bad_Dataset/
 Dataset/
 Failed_Examples/
+results/
+Training_Logs/
+Checkpoints/
 *.pdf
 
 # Compiled class file
@@ -133,3 +136,5 @@ ENV/
 
 # mkdocs documentation
 /site
+
+

@@ -1,13 +1,13 @@
 import tensorflow as tf
 
 
-
 def conv(batch_input, out_channels, ksize, stride, padding):
     with tf.variable_scope("conv"):
         in_channels = batch_input.get_shape()[3]
-        kernel = tf.get_variable("filter", [ksize, in_channels, out_channels],
-                                 dtype=tf.float32, initializer = tf.random_normal_initializer)
-        padded_input = tf.pad(batch_input, padding, mode="CONSTANT")
+        kernel = tf.get_variable("filter", [ksize,ksize, in_channels, out_channels],
+                                 dtype=tf.float32, initializer = tf.random_normal_initializer(0, 0.02))
+        padded_input = tf.pad(batch_input, [[0,0],[padding, padding],
+                                            [padding, padding], [0, 0]], mode="CONSTANT")
 
         conv = tf.nn.conv2d(padded_input, kernel, [1, stride, stride, 1], padding="VALID")
         return conv
@@ -36,10 +36,12 @@ def batchnorm(input):
 def deconv(batch_input, out_channels, ksize, stride, padding):
     with tf.variable_scope("transposed_conv"):
         batch, in_height, in_width, in_channels = [int(d) for d in batch_input.get_shape()]
-        kernel = tf.get_variable("filter", [ksize,ksize, out_channels, in_channels], dtype=tf.float32, initializer=tf.random_normal_initializer)
-        padded_input = tf.pad(batch_input, padding, mode="CONSTANT")
+        kernel = tf.get_variable("filter", [ksize,ksize, out_channels, in_channels], dtype=tf.float32,
+                                 initializer=tf.random_normal_initializer())
+        padded_input = tf.pad(batch_input, [[0, 0], [padding, padding],
+                                            [padding, padding], [0, 0]], mode="CONSTANT")
         tranconv = tf.nn.conv2d_transpose(padded_input, kernel, [batch, in_height*2, in_width*2, out_channels],
-                                          [1, stride, stride, 1], padding="VALID")
+                                          [1, stride, stride, 1], padding="SAME")
         return tranconv
 
 

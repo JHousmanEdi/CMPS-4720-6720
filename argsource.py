@@ -16,10 +16,11 @@ parser.add_argument("--mode", default="train", choices=["train", "test", "export
 parser.add_argument("--seed", type=int)
 #Model processing ends here
 parser.add_argument("--images", default="/home/jason/Documents/CMPS-4720-6720/Dataset/ExpB128", help="path to folder containing images")
-parser.add_argument("--results_dir", default = "/home/jason/Documents/CMPS-4720-6720/Results", help="where to put output files")
+parser.add_argument("--results_dir", default="/home/jason/Documents/CMPS-4720-6720/results/ExpB", help="where to put output files")
 parser.add_argument("--checkpoint", default=None,
                     help="directory with checkpoint to resume training from or use for testing")
 parser.add_argument("--log_dir", default = "/home/jason/Documents/CMPS-4720-6720/Training_Logs", help="Where log file(s) get saved")
+parser.add_argument("--prog_dir", default="/home/jason/Documents/CMPS-4720-6720/results/inprogExpB,", help="Where progress images are saved")
 #Directory processing ends here
 parser.add_argument("--ngf", type=int, default=64, help="number of generator filters in first conv layer")
 parser.add_argument("--ndf", type=int, default=64, help="number of discriminator filters in first conv layer")

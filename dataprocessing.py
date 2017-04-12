@@ -244,7 +244,7 @@ def save_image(fetches, dataset, step=None):
 
 
 def append_index(filesets, step=False):
-    index_path = os.path.join(args['output_dir'], "index.html")
+    index_path = os.path.join(args['prog_dir'], "index.html")
     if os.path.exists(index_path):
         index = open(index_path, "a")
     else:

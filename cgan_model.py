@@ -4,7 +4,7 @@ import tensorflow as tf
 import collections
 
 Model = collections.namedtuple("Model", "outputs, predict_real, predict_fake, D_loss, "
-                                        "discrim_grad_vars, gen_loss, G_loss, gen_grads_vars, train")
+                                        "discrim_grad_vars, gen_l2_loss, G_loss, gen_grads_vars, train")
 
 def create_generator(generator_inputs, generator_outputs_channels):
     layers = []
@@ -104,22 +104,22 @@ def create_model(inputs, targets):
         D_loss = tf.reduce_mean(tf.log(predict_real) + tf.log(1. - predict_fake))
 
     with tf.name_scope("generator_loss"): #Calculates loss of generator
-        gen_loss = tf.nn.l2_loss(-tf.log(predict_fake))
-        G_loss = (1-args['l2_weight'])*D_loss + (args['l2_weight'] * gen_loss) #GP-GAN LOSS
+        gen_l2_loss = tf.nn.l2_loss(-tf.log(predict_fake))
+        G_loss = (1-args['l2_weight'])*D_loss + (args['l2_weight'] * gen_l2_loss) #GP-GAN LOSS
     with tf.name_scope("discriminator_train"): #Trains the discriminator with ADAM optimizer
         discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
         discrim_optim = tf.train.AdamOptimizer(args['lr_d'], args['beta1'])
-        discrim_grad_vars = discrim_optim.compute_gradients(gen_loss, var_list=discrim_tvars)
+        discrim_grad_vars = discrim_optim.compute_gradients(gen_l2_loss, var_list=discrim_tvars)
         discrim_train = discrim_optim.apply_gradients(discrim_grad_vars)
     with tf.name_scope("generator_train"): #Trains the generator with the ADAM optimizer
         with tf.control_dependencies([discrim_train]):
             gen_tvars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
             gen_optim = tf.train.AdamOptimizer(args['lr_g'], args['beta1'])
-            gen_grads_vars = gen_optim.compute_gradients(gen_loss, var_list=gen_tvars)
+            gen_grads_vars = gen_optim.compute_gradients(gen_l2_loss, var_list=gen_tvars)
             gen_train = gen_optim.apply_gradients(gen_grads_vars)
 
         ema = tf.train.ExponentialMovingAverage(decay=0.99)
-        update_losses = ema.apply([D_loss, G_loss, gen_loss])
+        update_losses = ema.apply([D_loss, G_loss, gen_l2_loss])
 
         global_step=tf.contrib.framework.get_or_create_global_step()
         incr_global_step = tf.assign(global_step, global_step+1)
@@ -130,7 +130,7 @@ def create_model(inputs, targets):
             predict_fake = predict_fake,
             D_loss=ema.average(D_loss),
             discrim_grad_vars=discrim_grad_vars,
-            gen_loss=ema.average(gen_loss),
+            gen_l2_loss=ema.average(gen_l2_loss),
             G_loss=ema.average(G_loss),
             gen_grads_vars = gen_grads_vars,
             train=tf.group(update_losses, incr_global_step, gen_train)

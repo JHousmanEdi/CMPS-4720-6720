@@ -214,6 +214,14 @@ def load_examples():
         )
 
 
+def convert(image):
+    if args['aspect_ratio'] != 1.0:
+        size = [args['cropping'], int(round(args['cropping'] * args['aspect_ratio']))]
+        image = tf.image.resize_images(image, size=size, method=tf.image.ResizeMethod.BICUBIC)
+
+    return tf.image.convert_image_dtype(image, dtype=tf.uint8, saturate=True)
+
+
 def save_image(fetches, dataset, step=None):
     image_dir = os.path.join(args['results_dir'], dataset)
     if not os.path.exists(image_dir):

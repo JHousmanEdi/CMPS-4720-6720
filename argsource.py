@@ -11,16 +11,17 @@ parser.add_argument("--aspect_ratio", type=float, default=1.0, help="aspect rati
 parser.add_argument("--flip", dest="flip", action="store_true", help="flip images horizontally")
 parser.add_argument("--no_flip", dest="flip", action="store_false", help="don't flip images horizontally")
 #Image processing ends here
-parser.add_argument("--batch", type=int, default=25, help="num images in batch")
+parser.add_argument("--batch", type=int, default=1, help="num images in batch")
 parser.add_argument("--mode", default="train", choices=["train", "test", "export"]) #Add Required Later
 parser.add_argument("--seed", type=int)
 #Model processing ends here
 parser.add_argument("--images", default="/home/jason/Documents/CMPS-4720-6720/Dataset/ExpE512", help="path to folder containing images")
 parser.add_argument("--results_dir", default="/home/jason/Documents/CMPS-4720-6720/results/ExpE", help="where to put output files")
-parser.add_argument("--checkpoint", default=None,
+parser.add_argument("--checkpoint", default="/home/jason/Documents/CMPS-4720-6720/Training_Logs",
                     help="directory with checkpoint to resume training from or use for testing")
 parser.add_argument("--log_dir", default = "/home/jason/Documents/CMPS-4720-6720/Training_Logs", help="Where log file(s) get saved")
 parser.add_argument("--prog_dir", default="/home/jason/Documents/CMPS-4720-6720/results/", help="Where progress images are saved")
+parser.add_argument("--initial_ckpt", default="/home/jason/Documents/CMPS-4720-6720/retouch_training", help= "where training is saved initially")
 #Directory processing ends here
 parser.add_argument("--ngf", type=int, default=64, help="number of generator filters in first conv layer")
 parser.add_argument("--ndf", type=int, default=64, help="number of discriminator filters in first conv layer")

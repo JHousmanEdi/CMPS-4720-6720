@@ -151,7 +151,7 @@ def main():
 
             if args['checkpoint'] is not None:
                 print("Continuing from last checkpoint")
-                checkpoint = tf.train.latest_checkpoint(args['checkout'])
+                checkpoint = tf.train.latest_checkpoint(args['log_dir'])
                 saver.restore(sess, checkpoint)
 
             max_steps = 2**32
@@ -225,7 +225,7 @@ def main():
 
                     if right_time(args['save_freq']):
                         print("saving current model parameters")
-                        saver.save(sess, os.path.join(args['log_dir'], "model"), global_step=sv.global_step)
+                        saver.save(sess, os.path.join(args['initial_ckpt'], "model"), global_step=sv.global_step)
 
                     if sv.should_stop():
                         break

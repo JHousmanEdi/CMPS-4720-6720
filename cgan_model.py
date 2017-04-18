@@ -89,6 +89,8 @@ def create_discriminator(discrim_inputs, discrim_targets):
             output = tf.sigmoid(convolved)
             layers.append(output)
         return layers[-1]
+
+
 def create_model(inputs, targets):
     with tf.variable_scope("generator") as scope: ##Load Generator Model
         out_channels = int(targets.get_shape()[-1])

@@ -223,7 +223,9 @@ def convert(image):
 
 
 def save_image(fetches, dataset, step=None):
-    image_dir = os.path.join(args['prog_dir'], dataset)
+    image_dir = os.path.join(args['results_dir'], dataset)
+    if args['mode'] == "test":
+        image_dir = os.path.join(args['results_dir'], dataset, 'images')
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
     filesets = []
@@ -231,20 +233,30 @@ def save_image(fetches, dataset, step=None):
         name, _ = os.path.splitext(os.path.basename(in_path.decode("utf8")))
         fileset = {"name" : name, "step": step}
         for kind in ["inputs", "outputs", "targets"]:
-            filename = "{}-{}.jpg".format(name, kind)
+            filename = name + "-" + kind + ".jpg"
             if step is not None:
                 filename = "%08d-%s" % (step, filename)
-                fileset[kind] = filename
-                out_path = os.path.join(image_dir, filename)
-                contents = fetches[kind][i]
-                with open(out_path, "wb") as f:
-                    f.write(contents)
+            fileset[kind] = filename
+            out_path = os.path.join(image_dir, filename)
+            contents = fetches[kind][i]
+            with open(out_path, "wb") as f:
+                f.write(contents)
         filesets.append(fileset)
-    return filesets
+        return filesets
+
+
+def export_image(image, dataset):
+    exp_dir = '/home/jason/Documents/CMPS-4720-6720/results/TestResults'
+    out_path = os.path.join(exp_dir, "edited.jpg")
+    with open(out_path, "wb") as f:
+        f.write(image)
 
 
 def append_index(filesets, step=False):
-    index_path = os.path.join(args['prog_dir'], "index.html")
+    index_path = os.path.join(args['results_dir'],"test", "index.html")
+    if not os.path.exists(index_path):
+        with open('index.html', 'w'):
+            pass
     if os.path.exists(index_path):
         index = open(index_path, "a")
     else:

@@ -1,5 +1,5 @@
 import argparse
-
+import os
 
 parser = argparse.ArgumentParser()
 """
@@ -12,10 +12,10 @@ parser.add_argument("--flip", dest="flip", action="store_true", help="flip image
 parser.add_argument("--no_flip", dest="flip", action="store_false", help="don't flip images horizontally")
 #Image processing ends here
 parser.add_argument("--batch", type=int, default=1, help="num images in batch")
-parser.add_argument("--mode", default="export", choices=["train", "test", "export"]) #Add Required Later
+parser.add_argument("--mode", default="generate", choices=["train", "test", "export", "generate"]) #Add Required Later
 parser.add_argument("--seed", type=int)
 #Model processing ends here
-parser.add_argument("--images", default="/home/jason/Documents/CMPS-4720-6720/Dataset/random_test", help="path to folder containing images")
+parser.add_argument("--images", default="/home/jason/Documents/CMPS-4720-6720/Dataset/PeopleExpEOrig", help="path to folder containing images")
 parser.add_argument("--results_dir", default="/home/jason/Documents/CMPS-4720-6720/results/", help="where to put output files")
 parser.add_argument("--checkpoint", default="/home/jason/Documents/CMPS-4720-6720/Training_Logs",
                     help="directory with checkpoint to resume training from or use for testing")
@@ -23,6 +23,8 @@ parser.add_argument("--log_dir", default = "/home/jason/Documents/CMPS-4720-6720
 parser.add_argument("--prog_dir", default="/home/jason/Documents/CMPS-4720-6720/results/", help="Where progress images are saved")
 parser.add_argument("--initial_ckpt", default="/home/jason/Documents/CMPS-4720-6720/retouch_training", help= "where training is saved initially")
 parser.add_argument("--personal_test", default="/home/jason/Documents/CMPS-4720-6720/Dataset/personal_images", help="where my personal images are")
+images = os.listdir((os.path.join(os.getcwd(), "Dataset", "GenerateMe")))
+parser.add_argument("--image_name", default=images, help='Name of image being loaded in directory')
 parser.add_argument("--stand_alone", default="/home/jason/Documents/CMPS-4720-6720/Training_Logs/generator_only", help="Where generator model is")
 #Directory processing ends here
 parser.add_argument("--ngf", type=int, default=64, help="number of generator filters in first conv layer")

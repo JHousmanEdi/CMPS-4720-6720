@@ -2,8 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import dataprocessing as ds
-from cgan_model import *
-
+import cgan_model as gp
+from argsource import args
 import tensorflow as tf
 import numpy as np
 import random
@@ -11,12 +11,84 @@ import os
 import json
 import time
 import math
+import base64
+
+
+
+def export_generator():
+    input_src = tf.placeholder(tf.string, shape=[1])
+    input_data = tf.decode_base64(input_src[0])
+    input_image = tf.image.decode_png(input_data)
+    input_image = input_image[:, :, :3]
+    input_image = tf.image.convert_image_dtype(input_image, dtype=tf.float32)
+    input_image.set_shape([args['cropping'], args['cropping'], 3])
+    batch_input = tf.expand_dims(input_image, axis=0)
+
+    with tf.variable_scope('generator') as scope:
+        generator = gp.Generator(ds.preprocess(batch_input), 3, args['ngf'])
+        batch_output = ds.deprocess(generator.build())
+
+    output_image = tf.image.convert_image_dtype(batch_output, dtype=tf.uint8)[0]
+
+    output_data = tf.image.encode_jpeg(output_image, quality=100)
+
+    output = tf.convert_to_tensor([tf.encode_base64(output_data)])
+    key = tf.placeholder(tf.string, shape=[1])
+    inputs = {
+        "key": key.name,
+        "input": input_src.name
+    }
+    tf.add_to_collection("inputs", json.dumps(inputs))
+    outputs = {
+        "key": tf.identity(key).name,
+        "output": output.name
+    }
+    tf.add_to_collection("outputs", json.dumps(outputs))
+
+    init_op = tf.global_variables_initializer()
+    restore_saver = tf.train.Saver()
+    export_saver = tf.train.Saver()
+
+    with tf.Session() as sess:
+        sess.run(init_op)
+        print("loading model")  # Loading previous model parameters
+        checkpoint = tf.train.latest_checkpoint(args['checkpoint'])
+        restore_saver.restore(sess, checkpoint)
+        print("exporting model")
+        export_saver.export_meta_graph(filename=os.path.join(args['results_dir'], "export.meta"))
+        export_saver.save(sess, os.path.join(args['results_dir'], "export"), write_meta_graph=False)
+
+def generate_image(image_name):
+    image_directory = os.path.join(os.getcwd(), "Dataset", "GenerateMe")
+    input_image = os.path.join(image_directory, image_name)
+    with open(input_image, "rb") as f:
+        input_data = f.read()
+    input_instance = dict(input=base64.urlsafe_b64encode(input_data).decode("ascii"), key="0")
+    input_instance = json.loads(json.dumps(input_instance))
+
+    with tf.Session() as sess:
+        saver = tf.train.import_meta_graph(args['stand_alone'] + "/export.meta")
+        saver.restore(sess,args['stand_alone'] +"/exports")
+        input = tf.get_default_graph().get_tensor_by_name('Placeholder:0')
+        output = tf.get_default_graph().get_tensor_by_name('packed:0')
+        input_value = np.array(input_instance["input"])
+        output_value = sess.run(output, feed_dict={input: np.expand_dims(input_value, axis=0)})[0]
+
+
+    output_instance = dict(output=output_value.decode("ascii"), key="0")
+    b64data = output_instance["output"]
+    b64data += "=" * (-len(b64data) % 4)
+    output_data = base64.urlsafe_b64decode(b64data.encode("ascii"))
+    out_image_name = os.path.splitext(input_image)[0]
+    output_image = os.path.join(image_directory, out_image_name +"_out.jpg")
+    with open(output_image, "wb") as f:
+        f.write(output_data)
+        f.close()
 
 def main():
     # noinspection PyUnresolvedReferences
     if tf.__version__.split('.')[0] != "1":
         raise Exception("Tensorflow version 1 required")
-
 
     if args['seed'] is None:
         args['seed'] = random.randint(0, 2**31 -1)
@@ -49,58 +121,29 @@ def main():
         f.write(json.dumps(args, sort_keys=True, indent=4))
 
     if args['mode'] == "export":
+        export_generator()
 
-        input_src = tf.placeholder(tf.string, shape=[1])
-        input_data = tf.decode_base64(input_src[0])
-        input_image = tf.image.decode_png(input_data)
-        input_image = input_image[:,:,:3]
-        input_image = tf.image.convert_image_dtype(input_image, dtype=tf.float32)
-        input_image.set_shape([args['cropping'], args['cropping'], 3])
-        batch_input = tf.expand_dims(input_image, axis=0)
+        return
 
-        with tf.variable_scope('generator') as scope:
-            batch_output = ds.deprocess(create_generator(ds.preprocess(batch_input), 3))
-
-        output_image = tf.image.convert_image_dtype(batch_output, dtype=tf.uint8)[0]
-
-        output_data = tf.image.encode_jpeg(output_image, quality=100)
-
-        output = tf.convert_to_tensor([tf.encode_base64(output_data)])
-        key = tf.placeholder(tf.string, shape=[1])
-        inputs = {
-            "key": key.name,
-            "input": input_src.name
-        }
-        tf.add_to_collection("inputs", json.dumps(inputs))
-        outputs = {
-            "key": tf.identity(key).name,
-            "output": output.name
-        }
-        tf.add_to_collection("outputs", json.dumps(outputs))
-
-        init_op = tf.global_variables_initializer()
-        restore_saver = tf.train.Saver()
-        export_saver = tf.train.Saver()
-
-        with tf.Session() as sess:
-            sess.run(init_op)
-            print("loading model") #Loading previous model parameters
-            checkpoint = tf.train.latest_checkpoint(args['checkpoint'])
-            restore_saver.restore(sess, checkpoint)
-            print("exporting model")
-            export_saver.export_meta_graph(filename=os.path.join(args['results_dir'], "export.meta"))
-            export_saver.save(sess, os.path.join(args['results_dir'], "export"), write_meta_graph=False)
-
+    if args['mode'] == "generate":
+        if args['image_name'] is None:
+            raise Exception("Please cannot proceed without an image")
+        else:
+            if type(args['image_name']) is list:
+                for i in args['image_name']:
+                    generate_image(i)
+            else:
+                generate_image(args['image_name'])
         return
 
     examples = ds.load_examples()
     print("examples count = %d" % examples.count)
 
-    model = create_model(examples.inputs, examples.targets)
-
+    model = gp.Model(examples.inputs, examples.targets, args['ngf'], args['ndf'], 3)
+    model_out = model.optimize()
     inputs = ds.deprocess(examples.inputs)
     targets = ds.deprocess(examples.targets)
-    outputs = ds.deprocess(model.outputs)
+    outputs = ds.deprocess(model_out.outputs)
 
     with tf.name_scope("convert_input_images"):
         converted_input_images = ds.convert(inputs)
@@ -124,18 +167,18 @@ def main():
     with tf.name_scope("outputs_summary"):
         tf.summary.image("outputs", converted_output_images)
     with tf.name_scope("real_discriminator_summary"):
-        tf.summary.image("real_discriminator", tf.image.convert_image_dtype(model.predict_real, dtype=tf.uint8))
+        tf.summary.image("real_discriminator", tf.image.convert_image_dtype(model_out.predict_real, dtype=tf.uint8))
     with tf.name_scope("fake_discriminator_summary"):
-        tf.summary.image("fake_discriminator",  tf.image.convert_image_dtype(model.predict_fake, dtype=tf.uint8))
+        tf.summary.image("fake_discriminator",  tf.image.convert_image_dtype(model_out.predict_fake, dtype=tf.uint8))
 
-    tf.summary.scalar("discriminator_loss", model.D_loss)
-    tf.summary.scalar("encoder_decoder_loss", model.G_loss)
-    tf.summary.scalar("generator_l2_loss", model.gen_l2_loss)
+    tf.summary.scalar("discriminator_loss", model_out.D_loss)
+    tf.summary.scalar("encoder_decoder_loss", model_out.G_loss)
+    tf.summary.scalar("generator_l2_loss", model_out.gen_l2_loss)
 
     for var in tf.trainable_variables():
         tf.summary.histogram(var.op.name + "/values", var) #Summary of results
 
-    for grad, var in model.discrim_grad_vars + model.gen_grads_vars:
+    for grad, var in model_out.discrim_grad_vars + model_out.gen_grads_vars:
         tf.summary.histogram(var.op.name + "/gradients", grad)
 
     with tf.name_scope("parameter_count"):
@@ -184,14 +227,14 @@ def main():
                         run_metadata = tf.RunMetadata()
 
                     fetches = {
-                        "train": model.train,
+                        "train": model_out.train,
                         "global_step": sv.global_step,
                     }
 
                     if right_time(args['progress_freq']):
-                        fetches["discriminator_loss"] = model.D_loss
-                        fetches["encoder_decoder_loss"] = model.G_loss
-                        fetches["generator_l2_loss"] = model.gen_l2_loss
+                        fetches["discriminator_loss"] = model_out.D_loss
+                        fetches["encoder_decoder_loss"] = model_out.G_loss
+                        fetches["generator_l2_loss"] = model_out.gen_l2_loss
 
                     if right_time(args['summary_freq']):
                         fetches["summary"] = sv.summary_op

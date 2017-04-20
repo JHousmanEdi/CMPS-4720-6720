@@ -10,7 +10,7 @@ import base64
 
 
 def main():
-    with open('/home/jason/Documents/CMPS-4720-6720/Dataset/personal_images/DSC_4963_sized.jpg', "rb") as f:
+    with open('/home/jason/Documents/CMPS-4720-6720/Dataset/personal_images/DSC_5067.jpg', "rb") as f:
         input_data = f.read()
     input_instance = dict(input=base64.urlsafe_b64encode(input_data).decode("ascii"), key="0")
     input_instance = json.loads(json.dumps(input_instance))
@@ -28,7 +28,7 @@ def main():
     b64data += "=" * (-len(b64data) % 4)
     output_data = base64.urlsafe_b64decode(b64data.encode("ascii"))
 
-    with open(args['personal_test'] + "/out.jpg", "wb") as f:
+    with open(args['personal_test'] + "/carson_out.jpg", "wb") as f:
         f.write(output_data)
         f.close()
 

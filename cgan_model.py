@@ -3,7 +3,7 @@ from cgan_utils import layer_wrapper
 import tensorflow as tf
 import collections
 
-Model = collections.namedtuple("Model", "outputs, predict_real, predict_fake, D_loss, "
+Model_Outs = collections.namedtuple("Model", "outputs, predict_real, predict_fake, D_loss, "
                                         "discrim_grad_vars, gen_l2_loss, G_loss, gen_grads_vars, train")
 
 
@@ -84,7 +84,7 @@ class DecoderLayers:
 
 
 class Generator:
-    def __init__(self, gen_input, gen_output_chan, final_output_channels):
+    def __init__(self, gen_input, final_output_channels, gen_output_chan = args['ngf']):
         self.gen_input = gen_input
         self.gen_output_chan = gen_output_chan
         self.final_output_channels = final_output_channels
@@ -129,7 +129,7 @@ class Discriminator:
 
 
 class model():
-    def __init__(self, inputs, targets, final_output_channels, n_layers=3, discrim_filters):
+    def __init__(self, inputs, targets, final_output_channels = args['ngf'], discrim_filters = args['ndf'], n_layers=3):
         self.inputs = inputs
         self.targets = targets
         self.n_layers = n_layers
@@ -183,7 +183,7 @@ class model():
         global_step = tf.contrib.framework.get_or_create_global_step()
         incr_global_step = tf.assign(global_step, global_step + 1)
 
-        return Model(
+        return Model_Outs(
             outputs=output,
             predict_real=real_discrim,
             predict_fake=gen_discrim,
@@ -323,7 +323,7 @@ def create_model(inputs, targets):
     global_step=tf.contrib.framework.get_or_create_global_step()
     incr_global_step = tf.assign(global_step, global_step+1)
 
-    return Model(
+    return Model_outs(
         outputs=outputs,
         predict_real=predict_real,
         predict_fake = predict_fake,

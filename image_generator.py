@@ -2,8 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import dataprocessing as ds
-from cgan_model import *
-
+import cgan_model as gp
+from argsource import args
 import tensorflow as tf
 import numpy as np
 import random
@@ -16,7 +16,6 @@ def main():
     # noinspection PyUnresolvedReferences
     if tf.__version__.split('.')[0] != "1":
         raise Exception("Tensorflow version 1 required")
-
 
     if args['seed'] is None:
         args['seed'] = random.randint(0, 2**31 -1)
@@ -59,7 +58,8 @@ def main():
         batch_input = tf.expand_dims(input_image, axis=0)
 
         with tf.variable_scope('generator') as scope:
-            batch_output = ds.deprocess(create_generator(ds.preprocess(batch_input), 3))
+            generator = gp.Generator(ds.preprocess(batch_input), 3, args['ngf'])
+            batch_output = ds.deprocess(generator.build())
 
         output_image = tf.image.convert_image_dtype(batch_output, dtype=tf.uint8)[0]
 
@@ -96,11 +96,11 @@ def main():
     examples = ds.load_examples()
     print("examples count = %d" % examples.count)
 
-    model = create_model(examples.inputs, examples.targets)
-
+    model = gp.model(examples.inputs, examples.targets, args['ngf'], args['ndf'], 3)
+    model_out = model.optimize()
     inputs = ds.deprocess(examples.inputs)
     targets = ds.deprocess(examples.targets)
-    outputs = ds.deprocess(model.outputs)
+    outputs = ds.deprocess(model_out.outputs)
 
     with tf.name_scope("convert_input_images"):
         converted_input_images = ds.convert(inputs)
@@ -124,18 +124,18 @@ def main():
     with tf.name_scope("outputs_summary"):
         tf.summary.image("outputs", converted_output_images)
     with tf.name_scope("real_discriminator_summary"):
-        tf.summary.image("real_discriminator", tf.image.convert_image_dtype(model.predict_real, dtype=tf.uint8))
+        tf.summary.image("real_discriminator", tf.image.convert_image_dtype(model_out.predict_real, dtype=tf.uint8))
     with tf.name_scope("fake_discriminator_summary"):
-        tf.summary.image("fake_discriminator",  tf.image.convert_image_dtype(model.predict_fake, dtype=tf.uint8))
+        tf.summary.image("fake_discriminator",  tf.image.convert_image_dtype(model_out.predict_fake, dtype=tf.uint8))
 
-    tf.summary.scalar("discriminator_loss", model.D_loss)
-    tf.summary.scalar("encoder_decoder_loss", model.G_loss)
-    tf.summary.scalar("generator_l2_loss", model.gen_l2_loss)
+    tf.summary.scalar("discriminator_loss", model_out.D_loss)
+    tf.summary.scalar("encoder_decoder_loss", model_out.G_loss)
+    tf.summary.scalar("generator_l2_loss", model_out.gen_l2_loss)
 
     for var in tf.trainable_variables():
         tf.summary.histogram(var.op.name + "/values", var) #Summary of results
 
-    for grad, var in model.discrim_grad_vars + model.gen_grads_vars:
+    for grad, var in model_out.discrim_grad_vars + model_out.gen_grads_vars:
         tf.summary.histogram(var.op.name + "/gradients", grad)
 
     with tf.name_scope("parameter_count"):
@@ -184,14 +184,14 @@ def main():
                         run_metadata = tf.RunMetadata()
 
                     fetches = {
-                        "train": model.train,
+                        "train": model_out.train,
                         "global_step": sv.global_step,
                     }
 
                     if right_time(args['progress_freq']):
-                        fetches["discriminator_loss"] = model.D_loss
-                        fetches["encoder_decoder_loss"] = model.G_loss
-                        fetches["generator_l2_loss"] = model.gen_l2_loss
+                        fetches["discriminator_loss"] = model_out.D_loss
+                        fetches["encoder_decoder_loss"] = model_out.G_loss
+                        fetches["generator_l2_loss"] = model_out.gen_l2_loss
 
                     if right_time(args['summary_freq']):
                         fetches["summary"] = sv.summary_op

@@ -14,7 +14,6 @@ import math
 import base64
 
 
-
 def export_generator():
     input_src = tf.placeholder(tf.string, shape=[1])
     input_data = tf.decode_base64(input_src[0])
@@ -136,7 +135,7 @@ def main():
                 generate_image(args['image_name'])
         return
 
-    examples = ds.load_examples()
+    examples = ds.image_loader()
     print("examples count = %d" % examples.count)
 
     model = gp.Model(examples.inputs, examples.targets, args['ngf'], args['ndf'], 3)
@@ -209,7 +208,7 @@ def main():
                 for step in range(max_steps):
                     results = sess.run(display_fetches)
                     filesets = ds.save_image(results, "test")
-                    index_path = ds.append_index(filesets)
+                    index_path = ds.results_to_html(filesets)
                     for i, f in enumerate(filesets):
                         print("evaluated image", f["name"])
                     print("wrote index at", index_path)
@@ -266,7 +265,7 @@ def main():
                     if right_time(args['display_freq']):
                         print("Saving progress images")
                         filesets = ds.save_image(results["display"], 'ProgExpE', step=results["global_step"])
-                        ds.append_index(filesets, step=True)
+                        ds.results_to_html(filesets, step=True)
 
                     if right_time(args['save_freq']):
                         print("saving current model parameters")

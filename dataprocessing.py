@@ -101,53 +101,7 @@ def rgb_to_lab(srgb):
         return tf.reshape(lab_pixels, tf.shape(srgb))
 
 
-def lab_to_rgb(lab):
-    with tf.name_scope("lab_to_rgb"):
-        lab = check_image(lab)
-        lab_pixels = tf.reshape(lab, [-1, 3]) #Maintains original amount of values per channel, splits into 3
-
-        with tf.name_scope("cielab_to_xyz"):
-            lab_to_fxfxyz = tf.constant([
-                [1/116.0, 1/116.0, 1/116.0], #Light
-                [(1/500.0), 0.0, 0.0], #Green->Red
-                [0.0, 0.0, -1/200.0], #Blue->Yellow
-            ])
-            fxfyfz_pixels = tf.matmul(lab_pixels + tf.constant([16.0, 0.0, 0.0]), lab_to_fxfxyz)
-            #Lab pixels + (16) by the lab_to_fxfyfz matrix
-            #Used this to udnerstand process: https://en.wikipedia.org/wiki/Lab_color_space#CIELAB-CIEXYZ_conversions
-
-            epsilon = 6/29
-            linear_mask = tf.cast(fxfyfz_pixels <= epsilon, dtype=tf.float32)
-            exponential_mask = tf.cast(fxfyfz_pixels > epsilon, dtype=tf.flaot32)
-            xyz_pixels = (3 * epsilon**2 * (fxfyfz_pixels - 4/29)) * linear_mask +\
-                         (fxfyfz_pixels ** 3) * exponential_mask
-        with tf.name_scope("xyz_to_srgb"):
-            xyz_to_rgb = tf.constant([
-                #     r           g          b
-                [3.2404542, -0.9692660, 0.0556434],  # x
-                [-1.5371385, 1.8760108, -0.2040259],  # y
-                [-0.4985314, 0.0415560, 1.0572252],  # z
-
-            ])
-            rgb_pixels = tf.matmul(xyz_pixels, xyz_to_rgb)
-            #avoid a slightly negative number messing up the conversation
-            rgb_pixels = tf.clip_by_value(rgb_pixels, 0.0, 1.0)
-            linear_mask = tf.cast(rgb_pixels <= 0.0031308, dtype=tf.flaot32)
-            exponential_mask = tf.cast(rgb_pixels > 0.0031308, dtype=tf.float32)
-            srgb_pixels = (rgb_pixels * 12.92 * linear_mask) + ((rgb_pixels ** (1/2.4) * 1.055) - 0.055) * exponential_mask
-
-            return tf.reshape(srgb_pixels, tf.shape(lab))
-
-
-def augment(image, brightness):
-    gr_channel, by_channel = tf.unstack(image, axis = 3) #unstack the tensors
-    l_channel = tf.squeeze(brightness, axis = 3)
-    lab = deprocess_lab(l_channel, gr_channel, by_channel)
-    rgb = lab_to_rgb(lab)
-    return rgb
-
-
-def load_examples():
+def image_loader():
     if args['images'] is None or not os.path.exists(args['images']):
         raise Exception("input_dir does not exist")
     input_paths = glob.glob(os.path.join(args['images'], "*.jpg"))
@@ -252,7 +206,7 @@ def export_image(image, dataset):
         f.write(image)
 
 
-def append_index(filesets, step=False):
+def results_to_html(filesets, step=False):
     index_path = os.path.join(args['results_dir'],"test", "index.html")
     if not os.path.exists(index_path):
         with open('index.html', 'w'):

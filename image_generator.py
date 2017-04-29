@@ -57,6 +57,7 @@ def export_generator():
         export_saver.export_meta_graph(filename=os.path.join(args['results_dir'], "export.meta"))
         export_saver.save(sess, os.path.join(args['results_dir'], "export"), write_meta_graph=False)
 
+
 def generate_image(image_name):
     image_directory = os.path.join(os.getcwd(), "Dataset", "GenerateMe")
     input_image = os.path.join(image_directory, image_name)
@@ -67,22 +68,22 @@ def generate_image(image_name):
 
     with tf.Session() as sess:
         saver = tf.train.import_meta_graph(args['stand_alone'] + "/export.meta")
-        saver.restore(sess,args['stand_alone'] +"/exports")
+        saver.restore(sess,args['stand_alone'] + "/exports")
         input = tf.get_default_graph().get_tensor_by_name('Placeholder:0')
         output = tf.get_default_graph().get_tensor_by_name('packed:0')
         input_value = np.array(input_instance["input"])
         output_value = sess.run(output, feed_dict={input: np.expand_dims(input_value, axis=0)})[0]
-
 
     output_instance = dict(output=output_value.decode("ascii"), key="0")
     b64data = output_instance["output"]
     b64data += "=" * (-len(b64data) % 4)
     output_data = base64.urlsafe_b64decode(b64data.encode("ascii"))
     out_image_name = os.path.splitext(input_image)[0]
-    output_image = os.path.join(image_directory, out_image_name +"_out.jpg")
+    output_image = os.path.join(image_directory, out_image_name + "_out.jpg")
     with open(output_image, "wb") as f:
         f.write(output_data)
         f.close()
+
 
 def main():
     # noinspection PyUnresolvedReferences
@@ -90,7 +91,7 @@ def main():
         raise Exception("Tensorflow version 1 required")
 
     if args['seed'] is None:
-        args['seed'] = random.randint(0, 2**31 -1)
+        args['seed'] = random.randint(0, 2**31 - 1)
 
     tf.set_random_seed(args['seed'])
     # noinspection PyUnresolvedReferences
@@ -175,7 +176,7 @@ def main():
     tf.summary.scalar("generator_l2_loss", model_out.gen_l2_loss)
 
     for var in tf.trainable_variables():
-        tf.summary.histogram(var.op.name + "/values", var) #Summary of results
+        tf.summary.histogram(var.op.name + "/values", var)  #Summary of results
 
     for grad, var in model_out.discrim_grad_vars + model_out.gen_grads_vars:
         tf.summary.histogram(var.op.name + "/gradients", grad)
@@ -249,7 +250,7 @@ def main():
 
                     if right_time(args['progress_freq']):
                         train_epoch = math.ceil(results["global_step"]/examples.steps_per_epoch)
-                        train_step = (results["global_step"] -1) % examples.steps_per_epoch + 1
+                        train_step = (results["global_step"] - 1) % examples.steps_per_epoch + 1
                         rate = (step + 1) * args['batch'] / (time.time() - start)
                         remaining = (max_steps - step) * args['batch'] / rate
                         print("progress epoch: {} step: {} image/sec: {} remaining: {}".format(train_epoch,

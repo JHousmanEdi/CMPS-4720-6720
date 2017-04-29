@@ -58,6 +58,7 @@ def image_loader():
 
         #Transforming images for robustness
         seed = random.randint(0, 2**31 - 1)
+
         def transform(image):
             r = image
             if args['flip']:

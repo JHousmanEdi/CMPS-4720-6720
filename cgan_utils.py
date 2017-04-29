@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 class layer_wrapper():
 
     def __init__(self, level):
@@ -16,12 +17,10 @@ class layer_wrapper():
             conv = tf.nn.conv2d(padded_input, kernel, [1, stride, stride, 1], padding="VALID")
             return conv
 
-
     def leaky_relu(self, x, a=0.2):
         with tf.name_scope("leaky-relu"):
             x = tf.identity(x)
             return (0.5 * (1+a)) * x + (0.5 * (1-a)) * tf.abs(x)
-
 
     def batchnorm(self, input):
         with tf.variable_scope("batch-normalize"):
@@ -36,7 +35,6 @@ class layer_wrapper():
             normalized = tf.nn.batch_normalization(input, mean, variance, offset, scale, variance_epsilon=variance_epislon)
             return normalized
 
-
     def deconv(self, batch_input, out_channels, ksize, stride, padding):
         with tf.variable_scope("transposed_conv"):
             batch, in_height, in_width, in_channels = [int(d) for d in batch_input.get_shape()]
@@ -47,8 +45,3 @@ class layer_wrapper():
             tranconv = tf.nn.conv2d_transpose(padded_input, kernel, [batch, in_height*2, in_width*2, out_channels],
                                               [1, stride, stride, 1], padding="SAME")
             return tranconv
-
-
-    def make_optimizer(self, alpha,beta1):
-        optimizer = tf.train.AdamOptimizer(alpha, beta1)
-        return optimizer

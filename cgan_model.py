@@ -181,7 +181,7 @@ class Model():
             with tf.control_dependencies([D_train]):
                 G_train_vars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
                 G_adam = tf.train.AdamOptimizer(args['lr_g'], args['beta1'])
-                G_gradients = G_adam.compute_gradients(gan_loss, var_list=G_train_vars)
+                G_gradients = G_adam.compute_gradients(G_loss, var_list=G_train_vars)
                 G_train = G_adam.apply_gradients(G_gradients)
         ema = tf.train.ExponentialMovingAverage(decay=0.99)
         update_losses = ema.apply([D_loss, G_loss, G_l2_loss])

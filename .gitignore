@@ -17,6 +17,8 @@ Checkpoints/
 Old_training/
 retouch_training/
 checkpoint/
+Lost/
+tensorboard/
 *.pdf
 
 # Compiled class file
